@@ -17,10 +17,10 @@ import matplotlib.patches as mpatches
 
 
 #%% Target file
-T1_ph_file='SMECel6A_nmol_red_sugar_min_MEAN.xls'
-
+data_file='SMECel6A_nmol_red_sugar_min_MEAN.xls'
+sheetname="Sheet1"
 #%% Extract and format data
-def extract_ph_temp_bivaraite_and_interpolate(infile, pH_start, pH_end, temp_start, temp_end, sheetname, interpolation_int):
+def extract_ph_temp_bivaraite_and_interpolate(infile, sheetname, pH_start=1, pH_end=8, temp_start=1, temp_end=12, interpolation_int=10):
     print('NB/ PH start/end is ROW, Temp start/end is COL')
     workbook=xlrd.open_workbook(infile)
     datasheet=workbook.sheet_by_name(sheetname)
@@ -29,6 +29,7 @@ def extract_ph_temp_bivaraite_and_interpolate(infile, pH_start, pH_end, temp_sta
     value_dict={}
     for col in list(range(temp_start-1, temp_end+1)):
         for row in list(range(pH_start-1, pH_end)):
+            print(col, row)
             if datasheet.cell_value(row, 0) not in pH_values:
                  pH_values.append(datasheet.cell_value(row, 0))
             if not col == 0:     
@@ -46,13 +47,14 @@ def extract_ph_temp_bivaraite_and_interpolate(infile, pH_start, pH_end, temp_sta
     Z_value_df = scipy.ndimage.zoom(Z_value_df, interpolation_int)
     #Create a 'mesh' dataframe for contour function to map to, for both pH and Temperatures or other variables  
    # return pH_values, Temperature_values
+    print(pH_values)
     pH, Temp = np.meshgrid(pH_values, Temperature_values) 
     pH = scipy.ndimage.zoom(pH, interpolation_int)
     Temp = scipy.ndimage.zoom(Temp, interpolation_int)
     print('Returns raw data dict, interpolated data df, interpolated pH as list, interpolated Temps as list')
     return value_dict, Z_value_df, pH, Temp, pH_values, Temperature_values
 
-T1_value_dict, T1_z_value_df, T1_pH, T1_Temp, pH_full, Temp_full=extract_ph_temp_bivaraite_and_interpolate(T1_ph_file, 2, 9, 1, 8, 'Sheet1', 10)
+T1_value_dict, T1_z_value_df, T1_pH, T1_Temp, pH_full, Temp_full=extract_ph_temp_bivaraite_and_interpolate(data_file, sheetname, 2, 8, 1, 7, 10)
 
 #%% Plot data with interpolation
 ############################## PLOTS ##################################
@@ -72,20 +74,20 @@ ms=3
 #####################
 
 ax1.set_xlabel('T ($^o$C)', fontsize=x_y_labelsize, labelpad=label_pad)
-ax1.set_ylabel('pH', fontsize=x_y_labelsize, labelpad=label_pad-10)
+ax1.set_ylabel('pH', fontsize=x_y_labelsize, labelpad=label_pad)
 contours=ax1.contour(T1_Temp, T1_pH, T1_z_value_df, levels=[20,40,60,80,100], colors='black')
 ax1.tick_params(axis='both', which='major', labelsize=phbivar_ticksize)
 ax1.clabel(contours, inline=True, fontsize=countour_labelsize, fmt='%3.0f')
 map1=ax1.contourf(T1_Temp, T1_pH, T1_z_value_df, 1000, cmap='jet',  alpha=0.95, ZLabelString='Activity')
-ax1.set_xticks([15,25,35,45,50])
-ax1.set_yticks([4, 5, 6, 7, 7.5])
-ax1.set_yticklabels(['4','5','6','7','7.5'])
+ax1.set_xticks(list(range(int(min(T1_value_dict.keys())), int(max(T1_value_dict.keys())) + 1, 5)))
+ax1.set_yticks(list(range(int(min(pH_full)), int(max(pH_full)) + 1, 1)))
+ax1.set_yticklabels([str(x) for x in list(range(int(min(pH_full)), int(max(pH_full)) + 1, 1))])
 ax1.tick_params(axis='both', which='major', labelsize=phbivartiskzie, pad=tickpad)
 
 ####CBAR#####
 cbar = fig.colorbar(map1)
 #corrds are left, bottom, width, height
-#cbar_ax = fig.add_axes([0.424, 0.125, 0.6, 0.75])
+cbar_ax = fig.add_axes([0.424, 0.125, 0.4, 0.75])
 #cbar=plt.colorbar(map1, ax=cbar_ax)
 cbar.set_ticks([20,40,60,80,100])
 cbar.ax.tick_params(labelsize=cbartisksize)
@@ -93,3 +95,4 @@ cbar.ax.set_ylabel('Relative activity (%)', size=x_y_labelsize)
 cbar.ax.yaxis.set_label_position("left")
 cbar_ax.axis('off')
 ax1.tick_params(axis='both', labelsize=phbivar_ticksize, pad=tickpad)
+fig.savefig("pH_temperature_bivariate_analysis_heatmap.pdf", bbox_inches='tight')
